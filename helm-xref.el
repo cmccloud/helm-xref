@@ -28,6 +28,9 @@
 (defvar helm-xref-alist nil
   "Holds helm candidates.")
 
+(defvar helm-xref-cache nil
+  "Cache for raw xref data.")
+
 (defgroup helm-xref nil
   "Xref with helm."
   :prefix "helm-xref-" :group 'helm)
@@ -103,18 +106,26 @@ Use FUNC to display buffer."
   (helm-build-sync-source "Helm Xref"
     :candidates (lambda ()
                   helm-xref-alist)
-    :persistent-action (lambda (xref-item)
-                         (helm-xref-goto-xref-item xref-item 'display-buffer))
-    :action (lambda (xref-item)
-              (helm-xref-goto-xref-item xref-item 'switch-to-buffer))
+    :persistent-action (lambda (candidate)
+                         (helm-xref-goto-xref-item candidate 'display-buffer))
+    :action (helm-make-actions
+             "Go to reference"
+             (lambda (candidate)
+               (helm-xref-goto-xref-item candidate 'switch-to-buffer))
+             "Open Xref Buffer"
+             (lambda (_candidate)
+               (xref--show-xref-buffer
+                (car helm-xref-cache)
+                (cdr helm-xref-cache))))
     :candidate-number-limit 9999))
 
-(defun helm-xref-show-xrefs (xrefs _alist)
+(defun helm-xref-show-xrefs (xrefs alist)
   "Function to display XREFS.
 
 Needs to be set the value of `xref-show-xrefs-function'."
   (setq helm-xref-alist nil)
-  (helm-xref-candidates xrefs)
+  (setq helm-xref-cache (cons xrefs alist))
+  (helm-xref-candidates (car helm-xref-cache))
   (helm :sources (helm-xref-source)
         :truncate-lines t
         :buffer "*helm-xref*"))
